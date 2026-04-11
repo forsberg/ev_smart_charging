@@ -23,16 +23,17 @@ from .const import (
 from .coordinator import EVSmartChargingCoordinator
 from .entity import EVSmartChargingEntity
 from .helpers.general import get_parameter, get_quarter_index
+from . import EVSmartConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry, async_add_devices
+    hass: HomeAssistant, entry: EVSmartConfigEntry, async_add_devices
 ):  # pylint: disable=unused-argument
     """Setup select platform."""
     _LOGGER.debug("EVSmartCharging.select.py")
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     selects = []
     selects.append(EVSmartChargingSelectStartQuarter(entry, coordinator))
     selects.append(EVSmartChargingSelectReadyQuarter(entry, coordinator))

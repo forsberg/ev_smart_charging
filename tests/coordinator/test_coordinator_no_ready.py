@@ -51,12 +51,10 @@ async def test_coordinator_no_ready(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    assert coordinator is not None
 
     # Provide price. This should give a 5h schedule, 19:00-24:00
     await coordinator.update_sensors()
@@ -140,12 +138,10 @@ async def test_coordinator_no_ready2(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    assert coordinator is not None
 
     # Provide price. This should give a 5h schedule, 19:00-24:00
     await coordinator.update_sensors()

@@ -1,7 +1,7 @@
 {
-    "name": "EV Smart Charging",
-    "homeassistant": "2023.4.0",
-    "zip_release": true,
-    "filename": "ev_smart_charging.zip",
-    "render_readme": true
+  "name": "EV Smart Charging",
+  "homeassistant": "2024.6.0",
+  "zip_release": true,
+  "filename": "ev_smart_charging.zip",
+  "render_readme": true
 }

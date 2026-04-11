@@ -16,6 +16,8 @@ from homeassistant.helpers.entity_registry import (
 )
 from homeassistant.util import dt
 
+type EVSmartConfigEntry = ConfigEntry["EVSmartChargingCoordinator"]
+
 from .coordinator import EVSmartChargingCoordinator
 from .const import (
     CONF_EV_CONTROLLED,
@@ -34,7 +36,7 @@ from .const import (
 _LOGGER: logging.Logger = logging.getLogger(__package__)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_setup_entry(hass: HomeAssistant, entry: EVSmartConfigEntry):
     """Set up this integration using UI."""
     _LOGGER.debug("async_setup_entry")
 
@@ -52,7 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             unsub()
         raise ConfigEntryNotReady(validation_error)
 
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    entry.runtime_data = coordinator
     coordinator.setup_timestamp = dt.now().timestamp()
 
     for platform in PLATFORMS:
@@ -90,10 +92,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: EVSmartConfigEntry) -> bool:
     """Handle removal of an entry."""
     _LOGGER.debug("async_unload_entry")
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     unloaded = all(
         await asyncio.gather(
             *[
@@ -106,7 +108,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unloaded:
         for unsub in coordinator.listeners:
             unsub()
-        hass.data[DOMAIN].pop(entry.entry_id)
 
     return unloaded
 

@@ -46,23 +46,17 @@ async def test_setup_unload_and_reload_entry(hass, bypass_validate_input_and_con
     # them to be.
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
-    assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
-    )
+    assert isinstance(config_entry.runtime_data, EVSmartChargingCoordinator)
 
     # Reload the entry and assert that the data from above is still there
     assert await async_reload_entry(hass, config_entry) is None
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
-    assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
-    )
+    assert isinstance(config_entry.runtime_data, EVSmartChargingCoordinator)
 
     # Unload the entry and verify that the data has been removed
     assert await async_unload_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert config_entry.entry_id not in hass.data[DOMAIN]
+    # Home Assistant automatically purges config_entry.runtime_data
 
 
 async def test_setup_entry_exception(hass):
@@ -107,9 +101,8 @@ async def test_setup_with_migration_v1(hass, bypass_validate_input_and_control):
     # Set up the entry and assert that the values set during setup are where we expect
     # them to be.
     assert await async_setup_entry(hass, config_entry)
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        config_entry.runtime_data, EVSmartChargingCoordinator
     )
 
     # Reload the entry and assert that the data from above is still there
@@ -122,10 +115,6 @@ async def test_setup_with_migration_v1(hass, bypass_validate_input_and_control):
     # assert isinstance(
     #     hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
     # )
-
-    # Unload the entry and verify that the data has been removed
-    assert await async_unload_entry(hass, config_entry)
-    assert config_entry.entry_id not in hass.data[DOMAIN]
 
 
 async def test_setup_with_migration_v2(hass, bypass_validate_input_and_control):
@@ -145,9 +134,8 @@ async def test_setup_with_migration_v2(hass, bypass_validate_input_and_control):
     # Set up the entry and assert that the values set during setup are where we expect
     # them to be.
     assert await async_setup_entry(hass, config_entry)
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        config_entry.runtime_data, EVSmartChargingCoordinator
     )
 
     # Reload the entry and assert that the data from above is still there
@@ -161,9 +149,6 @@ async def test_setup_with_migration_v2(hass, bypass_validate_input_and_control):
     #     hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
     # )
 
-    # Unload the entry and verify that the data has been removed
-    assert await async_unload_entry(hass, config_entry)
-    assert config_entry.entry_id not in hass.data[DOMAIN]
 
 
 async def test_setup_with_migration_v3(hass, bypass_validate_input_and_control):
@@ -183,9 +168,8 @@ async def test_setup_with_migration_v3(hass, bypass_validate_input_and_control):
     # Set up the entry and assert that the values set during setup are where we expect
     # them to be.
     assert await async_setup_entry(hass, config_entry)
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        config_entry.runtime_data, EVSmartChargingCoordinator
     )
 
     # Reload the entry and assert that the data from above is still there
@@ -230,9 +214,8 @@ async def test_setup_new_integration_name(hass, bypass_validate_input_and_contro
     # them to be.
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        config_entry.runtime_data, EVSmartChargingCoordinator
     )
 
     # Change title
@@ -241,9 +224,8 @@ async def test_setup_new_integration_name(hass, bypass_validate_input_and_contro
     # Reload the entry and assert that the data from above is still there
     assert await async_reload_entry(hass, config_entry) is None
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        config_entry.runtime_data, EVSmartChargingCoordinator
     )
 
     test = hass.data["device_registry"].devices
@@ -258,9 +240,8 @@ async def test_setup_new_integration_name(hass, bypass_validate_input_and_contro
     # Reload the entry and assert that the data from above is still there
     assert await async_reload_entry(hass, config_entry) is None
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        config_entry.runtime_data, EVSmartChargingCoordinator
     )
 
     test = hass.data["device_registry"].devices
@@ -269,7 +250,5 @@ async def test_setup_new_integration_name(hass, bypass_validate_input_and_contro
     # and HA 2024.7 and newer (name is updated) is different.
     assert device.name_by_user == "New title2" or device.name == "New title2"
 
-    # Unload the entry and verify that the data has been removed
     assert await async_unload_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert config_entry.entry_id not in hass.data[DOMAIN]

@@ -38,11 +38,10 @@ async def test_coordinator_device_name(hass, bypass_validate_input_and_control):
     # them to be.
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-
     # TODO: Make the test work.
     # # Change device title
     # entity_registry: EntityRegistry = async_entity_registry_get(hass)

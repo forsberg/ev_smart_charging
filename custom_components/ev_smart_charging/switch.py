@@ -24,16 +24,17 @@ from .const import (
 )
 from .coordinator import EVSmartChargingCoordinator
 from .entity import EVSmartChargingEntity
+from . import EVSmartConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry, async_add_devices
+    hass: HomeAssistant, entry: EVSmartConfigEntry, async_add_devices
 ):  # pylint: disable=unused-argument
     """Setup switch platform."""
     _LOGGER.debug("EVSmartCharging.switch.py")
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     switches = []
     switches.append(EVSmartChargingSwitchActive(entry, coordinator))
     switches.append(EVSmartChargingSwitchApplyLimit(entry, coordinator))

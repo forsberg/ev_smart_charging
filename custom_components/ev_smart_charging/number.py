@@ -33,16 +33,17 @@ from .const import (
 from .coordinator import EVSmartChargingCoordinator
 from .entity import EVSmartChargingEntity
 from .helpers.general import get_parameter
+from . import EVSmartConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry, async_add_devices
+    hass: HomeAssistant, entry: EVSmartConfigEntry, async_add_devices
 ):  # pylint: disable=unused-argument
     """Setup number platform."""
     _LOGGER.debug("EVSmartCharging.number.py")
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     numbers = []
     numbers.append(EVSmartChargingNumberChargingSpeed(entry, coordinator))
     numbers.append(EVSmartChargingNumberPriceLimit(entry, coordinator))

@@ -51,13 +51,10 @@ async def test_coordinator(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    assert coordinator is not None
-
     assert coordinator.ev_target_soc == 100
 
     # Unsubscribe to listeners
@@ -84,12 +81,10 @@ async def test_coordinator2(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    assert coordinator is not None
     assert coordinator.ev_target_soc == 80
 
     await coordinator.turn_on_charging()
@@ -206,12 +201,10 @@ async def test_coordinator_min_soc1(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    assert coordinator is not None
 
     # Provide price
     MockPriceEntity.set_state(hass, PRICE_20220930, PRICE_20221001)
@@ -275,12 +268,10 @@ async def test_coordinator_min_soc2(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    assert coordinator is not None
 
     # Provide price
     MockPriceEntity.set_state(hass, PRICE_20220930, PRICE_20221001)
@@ -393,12 +384,10 @@ async def test_coordinator_fix_soc(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    assert coordinator is not None
 
     assert coordinator.ev_target_soc == 80
 

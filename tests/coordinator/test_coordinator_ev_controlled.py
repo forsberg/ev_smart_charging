@@ -47,13 +47,10 @@ async def test_coordinator_ev_controlled_charger(
         config_entry.mock_state(hass=hass, state=ConfigEntryState.LOADED)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    # coordinator = EVSmartChargingCoordinator(hass, config_entry)
-    assert coordinator is not None
 
     # Provide price
     MockPriceEntity.set_state(hass, PRICE_20220930, PRICE_20221001)
@@ -118,14 +115,10 @@ async def test_coordinator_ev_controlled_car(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    # coordinator = EVSmartChargingCoordinator(hass, config_entry)
-    assert coordinator is not None
-
     # Provide price
     MockPriceEntity.set_state(hass, PRICE_20220930, PRICE_20221001)
     await coordinator.update_sensors()

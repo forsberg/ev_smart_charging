@@ -47,13 +47,10 @@ async def test_coordinator_opportunistic_type2_1(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    # coordinator = EVSmartChargingCoordinator(hass, config_entry)
-    assert coordinator is not None
 
     # Provide price
     MockPriceEntity.set_state(hass, PRICE_20220930, PRICE_20221001)
@@ -146,13 +143,10 @@ async def test_coordinator_opportunistic_type2_2(
     config_entry.add_to_hass(hass)
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    # coordinator = EVSmartChargingCoordinator(hass, config_entry)
-    assert coordinator is not None
 
     # Provide price
     MockPriceEntity.set_state(hass, PRICE_20220930, PRICE_20221001_LAST_NEGATIVE)

@@ -13,15 +13,16 @@ from .const import (
     ICON_STOP,
 )
 from .coordinator import EVSmartChargingCoordinator
+from . import EVSmartConfigEntry
 from .entity import EVSmartChargingEntity
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry, async_add_devices):
+async def async_setup_entry(hass: HomeAssistant, entry: EVSmartConfigEntry, async_add_devices):
     """Setup button platform."""
     _LOGGER.debug("EVSmartCharging.button.py")
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     buttons = []
     buttons.append(EVSmartChargingButtonStart(entry, coordinator))
     buttons.append(EVSmartChargingButtonStop(entry, coordinator))

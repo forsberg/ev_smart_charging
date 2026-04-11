@@ -47,12 +47,10 @@ async def test_button(hass, bypass_validate_input_and_control):
     assert await async_setup_entry(hass, config_entry)
     await hass.async_block_till_done()
 
-    assert DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]
+    coordinator = config_entry.runtime_data
     assert isinstance(
-        hass.data[DOMAIN][config_entry.entry_id], EVSmartChargingCoordinator
+        coordinator, EVSmartChargingCoordinator
     )
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-
     # Get the buttons
     button_start: EVSmartChargingButtonStart = hass.data["entity_components"][
         BUTTON
