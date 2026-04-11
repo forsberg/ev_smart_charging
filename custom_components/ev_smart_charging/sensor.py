@@ -14,14 +14,15 @@ from .const import (
     SENSOR,
 )
 from .entity import EVSmartChargingEntity
+from . import EVSmartConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry, async_add_devices):
+async def async_setup_entry(hass: HomeAssistant, entry: EVSmartConfigEntry, async_add_devices):
     """Setup sensor platform."""
     _LOGGER.debug("EVSmartCharging.sensor.py")
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     sensors = []
     sensors.append(EVSmartChargingSensorCharging(entry))
     sensors.append(EVSmartChargingSensorStatus(entry))
