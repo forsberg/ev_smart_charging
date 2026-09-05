@@ -31,7 +31,9 @@ from .const import (
     DOMAIN,
     STARTUP_MESSAGE,
     PLATFORMS,
+    SERIAL_SCHEDULING_GROUP_CONTAINER_KEY
 )
+from .helpers.serial_scheduler import SerialSchedulingGroupContainer
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
 
@@ -43,10 +45,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: EVSmartConfigEntry):
     if hass.data.get(DOMAIN) is None:
         hass.data.setdefault(DOMAIN, {})
         _LOGGER.debug(STARTUP_MESSAGE)
+        # Initialize serial schedulers container (singleton across all EV Smart Charging entries)
+        hass.data[DOMAIN][SERIAL_SCHEDULING_GROUP_CONTAINER_KEY] = SerialSchedulingGroupContainer()
 
     coordinator = EVSmartChargingCoordinator(hass, entry)
     validation_error = coordinator.validate_input_sensors()
-    if not validation_error:
+    if validation_error is None:
         validation_error = coordinator.validate_control_entities()
     if validation_error is not None:
         _LOGGER.debug("%s", validation_error)
@@ -96,6 +100,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: EVSmartConfigEntry) -> 
     """Handle removal of an entry."""
     _LOGGER.debug("async_unload_entry")
     coordinator = entry.runtime_data
+    
+    # Unregister from serial scheduler if applicable
+    coordinator.unregister_with_serial_scheduler()
+    
     unloaded = all(
         await asyncio.gather(
             *[

@@ -1,10 +1,12 @@
 """Helpers for coordinator"""
+from custom_components.ev_smart_charging.helpers.serial_scheduler import SerialChargingScheduler
+from custom_components.ev_smart_charging import EVSmartConfigEntry
 
 from copy import deepcopy
 from datetime import datetime, timedelta
 import logging
 from math import ceil
-from typing import Any
+from typing import Any, cast
 from homeassistant.util import dt
 
 from custom_components.ev_smart_charging.const import (
@@ -284,7 +286,8 @@ def get_start_quarter_utc(
 class Scheduler:
     """Class to handle charging schedules"""
 
-    def __init__(self) -> None:
+    def __init__(self, config_entry: EVSmartConfigEntry) -> None:
+        self.config_entry = config_entry
         self.schedule_base = []
         self.schedule_base_min_soc = []
         self.schedule = None
@@ -293,13 +296,37 @@ class Scheduler:
         self.charging_stop_time = None
         self.charging_number_of_quarters = 0
 
-    def create_base_schedule(
+    async def create_base_schedule(
         self,
         params: dict[str, Any],
         raw_two_days: Raw,
     ) -> None:
         """Create the base schedule"""
+        # Check if serial charging is enabled
+        _LOGGER.debug(f"create_base_schedule {self.config_entry.runtime_data.serial_charging_enabled}")
+        if self.config_entry.runtime_data.serial_charging_enabled:
+            # Get schedule from serial scheduler
+            try:
+                schedule_quarters = await cast(SerialChargingScheduler, self.config_entry.runtime_data.serial_scheduler).get_schedule(
+                    self.config_entry
+                )
+                _LOGGER.debug(f"[{self.config_entry.title}] Schedule quarters from serial scheduler: {schedule_quarters}")
+                if schedule_quarters:
+                    self.schedule_base = self._create_schedule_from_quarters(
+                        schedule_quarters, raw_two_days
+                    )
+                    # Serial scheduler handles min_soc and price limits
+                    self.schedule_base_min_soc = []
+                    _LOGGER.debug(
+                        f"Using serial scheduler schedule: {schedule_quarters}"
+                    )
+                    return
+            except Exception as e:
+                _LOGGER.error(f"Failed to get serial schedule: {e}")
+                # Fall back to local scheduling
+                pass
 
+        # Original logic for non-serial charging or fallback
         if (
             "ev_soc" not in params
             or "ev_target_soc" not in params
@@ -364,6 +391,17 @@ class Scheduler:
             params["max_price"],
             params["value_in_graph"],
         )
+
+
+        if self.config_entry.runtime_data.serial_charging_enabled:
+            _LOGGER.debug(
+                "Raw(schedule).number_of_nonzero() = %s", Raw(schedule).number_of_nonzero()
+            )
+            self.schedule = schedule
+            self.calc_schedule_summary()
+            return self.schedule if self.schedule is not None else []
+
+
         schedule_min_soc = get_charging_update(
             self.schedule_base_min_soc,
             params["switch_active"],
@@ -433,6 +471,20 @@ class Scheduler:
         self.schedule_base_min_soc = []
         self.schedule = None
         self.calc_schedule_summary()
+
+    def _create_schedule_from_quarters(
+        self, quarters: list[int], raw_two_days: Raw
+    ) -> list:
+        """Create schedule from list of quarter indices"""
+        result = Scheduler.get_empty_schedule()
+        raw_list = raw_two_days.get_raw()
+        for entry in result:
+            entry['value'] = None
+
+        for q in quarters:
+            if q < len(result) and q < len(raw_list):
+                result[q]["value"] = raw_list[q]["value"]
+        return result
 
     @staticmethod
     def get_empty_schedule() -> list:

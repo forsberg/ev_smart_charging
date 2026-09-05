@@ -48,6 +48,8 @@ from homeassistant.util import dt
 
 from custom_components.ev_smart_charging.helpers.price_adaptor import PriceAdaptor
 
+from  custom_components.ev_smart_charging import EVSmartConfigEntry
+
 from .const import (
     CHARGING_STATUS_CHARGING,
     CHARGING_STATUS_DISCONNECTED,
@@ -73,9 +75,11 @@ from .const import (
     CONF_EV_TARGET_SOC_SENSOR,
     CONF_START_QUARTER,
     DEFAULT_TARGET_SOC,
+    DOMAIN,
     READY_QUARTER_NONE,
     START_QUARTER_NONE,
     SWITCH,
+    SERIAL_SCHEDULING_GROUP_CONTAINER_KEY, CONF_SERIAL_CHARGING_ENABLED, CONF_SERIAL_CHARGING_PRIORITY, CONF_SERIAL_CHARGING_GROUP
 )
 from .helpers.coordinator import (
     Scheduler,
@@ -90,6 +94,8 @@ from .sensor import (
     EVSmartChargingSensorCharging,
     EVSmartChargingSensorStatus,
 )
+
+from .helpers.serial_scheduler import SerialChargingScheduler, SerialSchedulingGroupContainer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -112,7 +118,7 @@ class ChargerSwitch:
 class EVSmartChargingCoordinator:
     """Coordinator class"""
 
-    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, config_entry: EVSmartConfigEntry) -> None:
         """Initialize."""
         self.hass = hass
         self.config_entry = config_entry
@@ -146,11 +152,26 @@ class EVSmartChargingCoordinator:
         self.ev_soc_entity_id = None
         self.ev_target_soc_entity_id = None
 
+        self.serial_charging_enabled = bool(get_parameter(self.config_entry, CONF_SERIAL_CHARGING_ENABLED, False))
+
+        self.serial_charging_priority = int(get_parameter(
+            self.config_entry, CONF_SERIAL_CHARGING_PRIORITY, 50
+        ))
+        self.serial_charging_group = get_parameter(
+            self.config_entry, CONF_SERIAL_CHARGING_GROUP, "default"
+        )
+        self.serial_scheduler: SerialChargingScheduler | None = None
+
+        self.register_with_serial_scheduler()
+
+
+
+
         self.charger_switch = ChargerSwitch(
             hass, get_parameter(self.config_entry, CONF_CHARGER_ENTITY)
         )
 
-        self.scheduler = Scheduler()
+        self.scheduler = Scheduler(config_entry)
 
         self.ev_soc = None
         self.ev_soc_before_last_charging = -1
@@ -225,6 +246,20 @@ class EVSmartChargingCoordinator:
         """Unsubscribed to listeners"""
         for unsub in self.listeners:
             unsub()
+
+    @property
+    def serial_scheduling_group_container(self) -> SerialSchedulingGroupContainer:
+        return self.hass.data[DOMAIN][SERIAL_SCHEDULING_GROUP_CONTAINER_KEY]
+
+    def register_with_serial_scheduler(self):
+        if self.serial_charging_enabled:
+            self.serial_scheduler = self.serial_scheduling_group_container.register(self.serial_charging_group, self.config_entry)
+
+    def unregister_with_serial_scheduler(self):
+        if self.serial_scheduler is not None:
+            self.serial_scheduling_group_container.deregister(self.serial_charging_group, self.config_entry)
+        
+        
 
     @callback
     async def device_updated(self, event: Event):  # pylint: disable=unused-argument
@@ -554,8 +589,28 @@ class EVSmartChargingCoordinator:
     async def switch_active_update(self, state: bool):
         """Handle the Active switch"""
         self.switch_active = state
-        _LOGGER.debug("switch_active_update = %s", state)
+        _LOGGER.debug(f"switch_active_update = {state} for {self.config_entry}")
         await self.update_configuration()
+
+    async def switch_serial_charging_update(self, state: bool):
+        _LOGGER.debug(f"Updating serial_charging_enabled {self.serial_charging_enabled} -> {state}")
+        if self.serial_charging_enabled and state is False:
+            self.serial_scheduling_group_container.deregister(self.serial_charging_group, self.config_entry)
+        elif not self.serial_charging_enabled and state is True:
+            self.serial_scheduling_group_container.register(self.serial_charging_group, self.config_entry)
+
+        self.serial_charging_enabled = state
+        await self.update_configuration() # FIXME: Do we need this call?
+
+    async def serial_charging_group_update(self, new_group: str):
+        _LOGGER.debug(f"Updating serial_charging_group {self.serial_charging_group} -> {new_group}")
+        if self.serial_charging_enabled:
+            self.serial_scheduling_group_container.deregister(self.serial_charging_group, self.config_entry)
+            self.serial_scheduling_group_container.register(new_group, self.config_entry)
+
+        self.serial_charging_group = new_group
+        await self.update_configuration() # FIXME: Do we need this call?
+
 
     def get_all_entity_ids(self):
         """Get all entity ids from unique ids"""
@@ -792,6 +847,60 @@ class EVSmartChargingCoordinator:
             )
         await self.update_configuration()
 
+    def _update_serial_sensors(self):
+        """Update serial charging sensors with current schedule data"""
+        if not self.serial_scheduler or not self.serial_scheduler.last_schedule:
+            return
+        
+        ev_id = self.config_entry.entry_id
+        schedule = self.serial_scheduler.last_schedule.get(ev_id, [])
+        
+        # Update serial status sensor
+        if self.sensor_serial_status:
+            now = dt.now()
+            
+            if not self.switch_active or not self.switch_ev_connected:
+                status = "disconnected"
+            elif not schedule:
+                status = "no_schedule"
+            else:
+                # Check if currently charging
+                if self.raw_two_days:
+                    quarters = self.raw_two_days.get_raw()
+                    for q in schedule:
+                        if q < len(quarters):
+                            q_start = dt.as_local(quarters[q]["start"])
+                            q_end = dt.as_local(quarters[q]["end"])
+                            if q_start <= now < q_end:
+                                status = "charging"
+                                break
+                    else:
+                        status = "waiting"
+                else:
+                    status = "waiting"
+            
+            if self.sensor_serial_status._serial_status != status:
+                self.sensor_serial_status._serial_status = status
+                self.sensor_serial_status.update_ha_state()
+        
+        # Update serial schedule sensor
+        if self.sensor_serial_schedule and self.raw_two_days:
+            quarters = self.raw_two_days.get_raw()
+            result = []
+            for q in schedule:
+                if q < len(quarters):
+                    result.append({
+                        "start": quarters[q]["start"].isoformat(),
+                        "end": quarters[q]["end"].isoformat(),
+                        "value": quarters[q]["value"]
+                    })
+            
+            import json
+            schedule_json = json.dumps(result)
+            if self.sensor_serial_schedule._serial_schedule_json != schedule_json:
+                self.sensor_serial_schedule._serial_schedule_json = schedule_json
+                self.sensor_serial_schedule.update_ha_state()
+
     async def update_configuration(self):
         """Called when the configuration has been updated"""
         await self.update_sensors(configuration_updated=True)
@@ -872,6 +981,15 @@ class EVSmartChargingCoordinator:
             self.sensor.raw_two_days_local = (
                 self.raw_two_days.copy().to_local().get_raw()
             )
+            
+            # Update serial scheduler with new price data
+            if self.serial_charging_enabled and self.serial_scheduler:
+                try:
+                    await self.serial_scheduler.update_price_data(self.raw_two_days)
+                    _LOGGER.debug("Updated serial scheduler with new price data")
+                except Exception as e:
+                    _LOGGER.error(f"Failed to update serial scheduler price data: {e}")
+            
             # To handle non-live SOC
             # Update self.ev_soc_last if new price and ready_quarter == None
             if self.tomorrow_valid and not self.tomorrow_valid_previous:
@@ -1029,7 +1147,7 @@ class EVSmartChargingCoordinator:
             )
         ):
             if self.raw_two_days is not None:
-                self.scheduler.create_base_schedule(
+                await self.scheduler.create_base_schedule(
                     scheduling_params, self.raw_two_days
                 )
             else:
@@ -1064,6 +1182,11 @@ class EVSmartChargingCoordinator:
 
         _LOGGER.debug("self._max_price = %s", self.max_price)
         _LOGGER.debug("Current price = %s", self.sensor.current_price)
+        
+        # # Update serial charging sensors if enabled
+        # if self.serial_charging_enabled and self.serial_scheduler:
+        #     self._update_serial_sensors()
+        
         await self.update_state()  # Update the charging status
 
     def get_entity_id_from_unique_id(self, unique_id: str) -> str:
@@ -1078,7 +1201,7 @@ class EVSmartChargingCoordinator:
 
         return None
 
-    def validate_input_sensors(self) -> str:
+    def validate_input_sensors(self) -> str | None:
         """Check that all input sensors returns values."""
 
         price = get_parameter(self.config_entry, CONF_PRICE_SENSOR)
@@ -1099,7 +1222,7 @@ class EVSmartChargingCoordinator:
 
         return None
 
-    def validate_control_entities(self) -> str:
+    def validate_control_entities(self) -> str | None:
         """Check that all control entities are ready."""
 
         if self.charger_switch.entity_id:
