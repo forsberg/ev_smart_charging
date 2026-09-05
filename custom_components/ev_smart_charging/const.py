@@ -6,8 +6,9 @@ from homeassistant.const import __version__ as HA_VERSION
 NAME = "EV Smart Charging"
 DOMAIN = "ev_smart_charging"
 DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 ISSUE_URL = "https://github.com/jonasbkarlsson/ev_smart_charging/issues"
+SERIAL_SCHEDULING_GROUP_CONTAINER_KEY = "_serial_scheduling_group_container"
 
 # Icons
 ICON = "mdi:flash"
@@ -60,6 +61,13 @@ ENTITY_KEY_CONF_MIN_SOC_NUMBER = "minimum_ev_soc"
 ENTITY_KEY_CONF_START_QUARTER = "charge_start_time"
 ENTITY_KEY_CONF_READY_QUARTER = "charge_completion_time"
 
+# Serial charging entity keys
+ENTITY_KEY_SERIAL_SWITCH = "serial_charging"
+ENTITY_KEY_SERIAL_PRIORITY_NUMBER = "serial_charging_priority"
+ENTITY_KEY_SERIAL_GROUP_SELECT = "serial_charging_group"
+ENTITY_KEY_SERIAL_STATUS_SENSOR = "serial_status"
+ENTITY_KEY_SERIAL_SCHEDULE_SENSOR = "serial_schedule"
+
 # Configuration and options
 CONF_DEVICE_NAME = "device_name"
 CONF_PRICE_SENSOR = "price_sensor"
@@ -80,6 +88,11 @@ CONF_SOLAR_CHARGING_CONFIGURED = "solar_charging_configured"
 CONF_GRID_USAGE_SENSOR = "grid_usage_sensor"
 CONF_GRID_VOLTAGE = "grid_voltage"
 CONF_CHARGING_STATE_ENTITY = "charging_state_entity"
+
+# Serial charging configuration
+CONF_SERIAL_CHARGING_ENABLED = "serial_charging_enabled"
+CONF_SERIAL_CHARGING_PRIORITY = "serial_charging_priority"
+CONF_SERIAL_CHARGING_GROUP = "serial_charging_group"
 
 QUARTERS = [
     "None",
@@ -196,6 +209,10 @@ CHARGING_STATUS_LOW_SOC_CHARGING = "low_soc_charging"
 # Defaults
 DEFAULT_NAME = DOMAIN
 DEFAULT_TARGET_SOC = 100
+
+# Serial charging defaults
+DEFAULT_SERIAL_PRIORITY = 50
+DEFAULT_SERIAL_GROUP = "default"
 
 STARTUP_MESSAGE = f"""
 -------------------------------------------------------------------

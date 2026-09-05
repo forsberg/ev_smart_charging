@@ -19,6 +19,9 @@ from .const import (
     CONF_CHARGER_ENTITY,
     CONF_SOLAR_CHARGING_CONFIGURED,
     CONF_CHARGING_STATE_ENTITY,
+    CONF_SERIAL_CHARGING_ENABLED,
+    CONF_SERIAL_CHARGING_PRIORITY,
+    CONF_SERIAL_CHARGING_GROUP,
     DOMAIN,
 )
 from .helpers.config_flow import DeviceNameCreator, FindEntity, FlowValidator
@@ -68,6 +71,9 @@ class EVSmartChargingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input[CONF_EV_CONTROLLED] = False
             user_input[CONF_SOLAR_CHARGING_CONFIGURED] = False
             user_input[CONF_CHARGING_STATE_ENTITY] = ""
+            user_input[CONF_SERIAL_CHARGING_ENABLED] = False
+            user_input[CONF_SERIAL_CHARGING_PRIORITY] = 50
+            user_input[CONF_SERIAL_CHARGING_GROUP] = "default"
 
         else:
             # process user_input
@@ -109,6 +115,15 @@ class EVSmartChargingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(
                 CONF_EV_CONTROLLED, default=user_input[CONF_EV_CONTROLLED]
             ): cv.boolean,
+            vol.Optional(
+                CONF_SERIAL_CHARGING_ENABLED, default=user_input[CONF_SERIAL_CHARGING_ENABLED]
+            ): cv.boolean,
+            vol.Optional(
+                CONF_SERIAL_CHARGING_PRIORITY, default=user_input[CONF_SERIAL_CHARGING_PRIORITY]
+            ): vol.All(cv.positive_int, vol.Range(min=0, max=100)),
+            vol.Optional(
+                CONF_SERIAL_CHARGING_GROUP, default=user_input[CONF_SERIAL_CHARGING_GROUP]
+            ): cv.string,
         }
 
         return self.async_show_form(
@@ -170,6 +185,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 CONF_EV_CONTROLLED,
                 default=get_parameter(self.config_entry, CONF_EV_CONTROLLED),
             ): cv.boolean,
+            vol.Optional(
+                CONF_SERIAL_CHARGING_ENABLED,
+                default=get_parameter(self.config_entry, CONF_SERIAL_CHARGING_ENABLED),
+            ): cv.boolean,
+            vol.Optional(
+                CONF_SERIAL_CHARGING_PRIORITY,
+                default=get_parameter(self.config_entry, CONF_SERIAL_CHARGING_PRIORITY),
+            ): vol.All(cv.positive_int, vol.Range(min=0, max=100)),
+            vol.Optional(
+                CONF_SERIAL_CHARGING_GROUP,
+                default=get_parameter(self.config_entry, CONF_SERIAL_CHARGING_GROUP),
+            ): cv.string,
         }
 
         return self.async_show_form(

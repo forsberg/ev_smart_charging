@@ -1,7 +1,7 @@
 """Select platform for EV Smart Charging."""
 
 import logging
-from typing import Union
+from typing import Union, cast
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant, State

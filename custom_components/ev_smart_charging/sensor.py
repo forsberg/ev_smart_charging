@@ -11,7 +11,11 @@ from .const import (
     DOMAIN,
     ENTITY_KEY_CHARGING_SENSOR,
     ENTITY_KEY_STATUS_SENSOR,
+    ENTITY_KEY_SERIAL_STATUS_SENSOR,
+    ENTITY_KEY_SERIAL_SCHEDULE_SENSOR,
     SENSOR,
+    ICON_CONNECTION,
+    ICON_TIME,
 )
 from .entity import EVSmartChargingEntity
 from . import EVSmartConfigEntry
@@ -26,6 +30,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: EVSmartConfigEntry, asyn
     sensors = []
     sensors.append(EVSmartChargingSensorCharging(entry))
     sensors.append(EVSmartChargingSensorStatus(entry))
+    
+    # Add serial charging sensors
+    if getattr(coordinator, 'serial_charging_enabled', False):
+        sensors.append(EVSmartChargingSensorSerialStatus(entry))
+        sensors.append(EVSmartChargingSensorSerialSchedule(entry))
+    
     async_add_devices(sensors)
     await coordinator.add_sensor(sensors)
 
@@ -205,3 +215,39 @@ class EVSmartChargingSensorStatus(EVSmartChargingSensor):
         """Set new status."""
         self._attr_native_value = new_status
         self.update_ha_state()
+
+
+class EVSmartChargingSensorSerialStatus(EVSmartChargingSensor):
+    """Sensor for serial charging status"""
+
+    _entity_key = ENTITY_KEY_SERIAL_STATUS_SENSOR
+    _attr_icon = ICON_CONNECTION
+
+    def __init__(self, entry):
+        _LOGGER.debug("EVSmartChargingSensorSerialStatus.__init__()")
+        super().__init__(entry)
+        self._serial_status = "unknown"
+
+    @property
+    def native_value(self):
+        return self._serial_status
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"status": self._serial_status}
+
+
+class EVSmartChargingSensorSerialSchedule(EVSmartChargingSensor):
+    """Sensor showing assigned charging schedule for Lovelace visualization"""
+
+    _entity_key = ENTITY_KEY_SERIAL_SCHEDULE_SENSOR
+    _attr_icon = ICON_TIME
+
+    def __init__(self, entry):
+        _LOGGER.debug("EVSmartChargingSensorSerialSchedule.__init__()")
+        super().__init__(entry)
+        self._serial_schedule_json = "[]"
+
+    @property
+    def native_value(self):
+        return self._serial_schedule_json
