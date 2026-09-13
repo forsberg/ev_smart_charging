@@ -592,25 +592,6 @@ class EVSmartChargingCoordinator:
         _LOGGER.debug(f"switch_active_update = {state} for {self.config_entry}")
         await self.update_configuration()
 
-    async def switch_serial_charging_update(self, state: bool):
-        _LOGGER.debug(f"Updating serial_charging_enabled {self.serial_charging_enabled} -> {state}")
-        if self.serial_charging_enabled and state is False:
-            self.serial_scheduling_group_container.deregister(self.serial_charging_group, self.config_entry)
-        elif not self.serial_charging_enabled and state is True:
-            self.serial_scheduling_group_container.register(self.serial_charging_group, self.config_entry)
-
-        self.serial_charging_enabled = state
-        await self.update_configuration() # FIXME: Do we need this call?
-
-    async def serial_charging_group_update(self, new_group: str):
-        _LOGGER.debug(f"Updating serial_charging_group {self.serial_charging_group} -> {new_group}")
-        if self.serial_charging_enabled:
-            self.serial_scheduling_group_container.deregister(self.serial_charging_group, self.config_entry)
-            self.serial_scheduling_group_container.register(new_group, self.config_entry)
-
-        self.serial_charging_group = new_group
-        await self.update_configuration() # FIXME: Do we need this call?
-
 
     def get_all_entity_ids(self):
         """Get all entity ids from unique ids"""
@@ -932,6 +913,7 @@ class EVSmartChargingCoordinator:
         old_state: State = None,
         new_state: State = None,
         configuration_updated: bool = False,
+        update_serial_scheduler: bool = True
     ):  # pylint: disable=unused-argument
         """Price or EV sensors have been updated."""
 
@@ -983,7 +965,7 @@ class EVSmartChargingCoordinator:
             )
             
             # Update serial scheduler with new price data
-            if self.serial_charging_enabled and self.serial_scheduler:
+            if self.serial_charging_enabled and self.serial_scheduler and update_serial_scheduler:
                 try:
                     await self.serial_scheduler.update_price_data(self.raw_two_days)
                     _LOGGER.debug("Updated serial scheduler with new price data")
@@ -1163,6 +1145,9 @@ class EVSmartChargingCoordinator:
             and configuration_updated
         ):
             self.scheduler.set_empty_schedule()
+
+        if update_serial_scheduler:
+            await self.scheduler.update_base_schedule_from_serial(self.raw_two_days)
 
         if (
             self.scheduler.base_schedule_exists() is True

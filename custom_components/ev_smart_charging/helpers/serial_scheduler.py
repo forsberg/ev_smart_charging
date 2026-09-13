@@ -108,6 +108,7 @@ class SerialChargingScheduler:
         self.last_schedule = {}  # entry_id -> [quarter_indices]
         self.last_schedule_time = None
         self.schedule_version = 0
+        self.ev_schedule_version: dict[str, int] = {}
         self._lock = asyncio.Lock()
 
     def register(self, entry: EVSmartConfigEntry):
@@ -121,6 +122,15 @@ class SerialChargingScheduler:
         del self.config_entries[entry.entry_id]
         self._clear_cache()
 
+    async def update_others(self, me: EVSmartConfigEntry):
+        # Needs some kind of generational mechanism to not end up in infinite loop
+        for entry_id, entry in self.config_entries.items():
+            if entry_id != me.entry_id:
+                _LOGGER.debug(f"[{me.title}] Calling update_sensor on {entry.title}")
+                await entry.runtime_data.update_sensors(update_serial_scheduler=False)
+
+
+
     def _clear_cache(self):
         self.last_schedule = None
         self.schedule_version+=1
@@ -132,18 +142,21 @@ class SerialChargingScheduler:
             self.last_schedule = None
             self.schedule_version += 1
 
-    async def get_schedule(self, entry: EVSmartConfigEntry) -> list[int]:
+    async def get_schedule(self, entry: EVSmartConfigEntry, maybe_recalculate: bool = True) -> list[int]:
         """
         Get the charging schedule (list of quarter indices) for a coordinator.
         Recalculates global schedule if needed.
+
+        Called from helpers.coordinator::create_base_schedule
         """
 
         # Check if we need to recalculate
-        if self._needs_recalculate():
+        if self._needs_recalculate() and maybe_recalculate:
             async with self._lock:
                 # Double-check after acquiring lock
                 if self._needs_recalculate():
                     await self._calculate_global_schedule()
+                    await self.update_others(entry)
 
         if self.last_schedule is None:
             return []
@@ -324,6 +337,8 @@ class SerialChargingScheduler:
                 need_ratio * 100 * 0.2 +
                 soc_deficit * 0.1
             )
+
+        _LOGGER.debug(f"Serial Charging Priorities: {priorities}")
 
         return priorities
 

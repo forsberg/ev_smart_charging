@@ -372,6 +372,24 @@ class Scheduler:
             lowest_quarters, raw_two_days
         )
 
+    async def update_base_schedule_from_serial(self, raw_two_days: Raw):
+        schedule_quarters = await cast(SerialChargingScheduler, self.config_entry.runtime_data.serial_scheduler).get_schedule(
+            self.config_entry, maybe_recalculate=False
+        )
+        
+        if schedule_quarters:
+            _LOGGER.debug(f"[{self.config_entry.title}] update_base_schedule_from_serial, quarters: {schedule_quarters}")
+            self.schedule_base = self._create_schedule_from_quarters(
+                schedule_quarters, raw_two_days
+            )
+            # Serial scheduler handles min_soc and price limits
+            self.schedule_base_min_soc = []
+            _LOGGER.debug(
+                f"Using serial scheduler schedule: {schedule_quarters}"
+            )
+            return
+
+
     def base_schedule_exists(self) -> bool:
         """Return true if base schedule exists"""
         return len(self.schedule_base) > 0
@@ -400,6 +418,8 @@ class Scheduler:
             self.schedule = schedule
             self.calc_schedule_summary()
             return self.schedule if self.schedule is not None else []
+
+            
 
 
         schedule_min_soc = get_charging_update(
