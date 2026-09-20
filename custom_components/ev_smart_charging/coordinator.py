@@ -1174,6 +1174,15 @@ class EVSmartChargingCoordinator:
         
         await self.update_state()  # Update the charging status
 
+    @property
+    def start_quarter_utc(self) -> datetime:
+        return get_start_quarter_utc(self.start_quarter_local, self.ready_quarter_local)
+
+    @property
+    def ready_quarter_utc(self) -> datetime:
+        return get_ready_quarter_utc(self.ready_quarter_local)
+
+
     def get_entity_id_from_unique_id(self, unique_id: str) -> str:
         """Get the Entity ID for the entity with the unique_id"""
         entity_registry: EntityRegistry = async_entity_registry_get(self.hass)

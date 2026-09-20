@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from math import ceil
 import asyncio
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, UTC
 import logging
 from typing import Any, Optional, cast
 
@@ -32,8 +32,8 @@ class EVData:
         soc_target: float,
         soc_min: float,
         speed: float,
-        start_quarter: int,
-        ready_quarter: int,
+        start_quarter: datetime,
+        ready_quarter: datetime,
         priority: int,
         max_price: float,
         apply_limit: bool,
@@ -69,28 +69,28 @@ class EVData:
         return ceil(needed_pct / self.speed * 4)
 
     def get_eligible_quarters(
-        self, all_quarters: list[dict], current_quarter: int
+        self, price_data
     ) -> list[int]:
         """Get list of quarter indices this EV can use"""
         eligible = []
+        now = datetime.now(tz=UTC)
 
-        for i, q in enumerate(all_quarters):
-            q_quarter = Utils.datetime_quarter(dt.as_local(q["start"]))
-
+        for i, q in enumerate(price_data):
             # Must be in the future
-            if q_quarter < current_quarter:
+            if q['end'] < now:
                 continue
 
             # Must be within EV's time window
             if self.start_quarter != START_QUARTER_NONE:
-                if q_quarter < self.start_quarter:
+                if q['start'] < self.start_quarter:
                     continue
             if self.ready_quarter != READY_QUARTER_NONE:
-                if q_quarter > self.ready_quarter:
+                if q['end'] > self.ready_quarter:
                     continue
 
             # Must be below price limit if enabled
             if self.apply_limit and q["value"] > self.max_price:
+                _LOGGER.debug("Price limit skip")
                 continue
 
             eligible.append(i)
@@ -188,12 +188,15 @@ class SerialChargingScheduler:
         # Step 2: Get quarter data
         quarters = self.price_data.get_raw()
         num_quarters = len(quarters)
+        _LOGGER.debug(f"Num_quarters: {num_quarters}")
         current_quarter = Utils.datetime_quarter(dt.now())
 
         # Step 3: For each EV, determine eligible quarters
         ev_eligible = {}
         for ev in evs:
-            ev_eligible[ev.ev_id] = ev.get_eligible_quarters(quarters, current_quarter)
+            ev_eligible[ev.ev_id] = ev.get_eligible_quarters(quarters)
+            _LOGGER.debug(f"Eligible quarters for {ev.name}: {ev_eligible[ev.ev_id]}")
+
 
         # Step 4: Create reverse mapping: quarter -> list of eligible EV IDs
         quarter_to_evs = {i: [] for i in range(num_quarters)}
@@ -258,8 +261,8 @@ class SerialChargingScheduler:
                     soc_target=0,
                     soc_min=0,
                     speed=coordinator.charging_pct_per_hour,
-                    start_quarter=cast(int, coordinator.start_quarter_local),
-                    ready_quarter=cast(int, coordinator.ready_quarter_local),
+                    start_quarter=coordinator.start_quarter_utc,
+                    ready_quarter=coordinator.ready_quarter_utc,
                     priority=coordinator.serial_charging_priority,
                     max_price=0,
                     apply_limit=False,
@@ -284,11 +287,11 @@ class SerialChargingScheduler:
                 soc_target=soc_target,
                 soc_min=soc_min,
                 speed=coordinator.charging_pct_per_hour,
-                start_quarter=cast(int, coordinator.start_quarter_local),
-                ready_quarter=cast(int, coordinator.ready_quarter_local),
+                start_quarter=coordinator.start_quarter_utc,
+                ready_quarter=coordinator.ready_quarter_utc,
                 priority=coordinator.serial_charging_priority,
                 max_price=coordinator.max_price,
-                apply_limit=coordinator.switch_apply_limit,
+                apply_limit=coordinator.switch_apply_limit if coordinator.switch_apply_limit is not None else False,
                 connected=True,
                 active=True,
             )
@@ -314,8 +317,8 @@ class SerialChargingScheduler:
             # Time urgency: how soon is the deadline?
             if ev.ready_quarter == READY_QUARTER_NONE:
                 time_to_deadline = float('inf')
-            elif ev.ready_quarter >= current_quarter:
-                time_to_deadline = ev.ready_quarter - current_quarter
+            elif ev.ready_quarter >= datetime.now(UTC):
+                time_to_deadline = (ev.ready_quarter - datetime.now(UTC)).total_seconds()
             else:
                 time_to_deadline = 0
 
@@ -409,7 +412,7 @@ class SerialChargingScheduler:
             )
 
             # Find any eligible quarters (ignoring price limit for min_SOC)
-            eligible_all = ev.get_eligible_quarters(quarters, current_quarter)
+            eligible_all = ev.get_eligible_quarters(quarters)
 
             # Also include quarters that exceed price limit
             for i, q in enumerate(quarters):
