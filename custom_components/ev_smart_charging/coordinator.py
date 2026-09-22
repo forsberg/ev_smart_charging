@@ -1146,7 +1146,7 @@ class EVSmartChargingCoordinator:
         ):
             self.scheduler.set_empty_schedule()
 
-        if update_serial_scheduler:
+        if self.serial_charging_enabled and update_serial_scheduler:
             await self.scheduler.update_base_schedule_from_serial(self.raw_two_days)
 
         if (
