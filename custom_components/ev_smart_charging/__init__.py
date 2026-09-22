@@ -31,7 +31,7 @@ from .const import (
     DOMAIN,
     STARTUP_MESSAGE,
     PLATFORMS,
-    SERIAL_SCHEDULING_GROUP_CONTAINER_KEY
+    SERIAL_SCHEDULING_GROUP_CONTAINER_KEY, CONF_SERIAL_CHARGING_ENABLED, CONF_SERIAL_CHARGING_GROUP, CONF_SERIAL_CHARGING_PRIORITY
 )
 from .helpers.serial_scheduler import SerialSchedulingGroupContainer
 
@@ -175,7 +175,13 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
         new[CONF_GRID_VOLTAGE] = 230  # [V]
         migration = True
 
-    if version > 7:
+    if version == 7:
+        version = 8
+        new[CONF_SERIAL_CHARGING_ENABLED] = False
+        new[CONF_SERIAL_CHARGING_GROUP] = "default"
+        new[CONF_SERIAL_CHARGING_PRIORITY] = 50
+
+    if version > 8:
         _LOGGER.error(
             "Migration from version %s to a lower version is not possible",
             version,
